@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crypto Price Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0d0d0d;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      color: #f0b90b;
+      letter-spacing: 0.05em;
+    }
+
+    #status {
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+      color: #888;
+    }
+
+    #status.connected { color: #4caf50; }
+    #status.disconnected { color: #f44336; }
+
+    #cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.25rem;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 1.5rem;
+      transition: border-color 0.3s;
+    }
+
+    .card.flash-up   { border-color: #4caf50; }
+    .card.flash-down { border-color: #f44336; }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .symbol {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #f0b90b;
+    }
+
+    .timestamp {
+      font-size: 0.72rem;
+      color: #555;
+    }
+
+    .price {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+
+    .change {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .change.positive { color: #4caf50; }
+    .change.negative { color: #f44336; }
+
+    .meta {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 1rem;
+      font-size: 0.8rem;
+      color: #666;
+    }
+
+    .meta span b { color: #aaa; }
+
+    footer {
+      margin-top: 3rem;
+      font-size: 0.75rem;
+      color: #444;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Crypto Price Dashboard</h1>
+    <p id="status" class="disconnected">Connecting…</p>
+  </header>
+
+  <div id="cards"></div>
+
+  <footer>Powered by Binance WebSocket · Socket.io</footer>
+
+  <!-- Socket.io client (served by the server automatically) -->
+  <script src="/ws/socket.io.js"></script>
+  <script>
+    const socket = io({ path: '/ws' });
+    const statusEl = document.getElementById('status');
+    const cardsEl  = document.getElementById('cards');
+
+    socket.on('connect', () => {
+      statusEl.textContent = 'Connected — live updates active';
+      statusEl.className = 'connected';
+    });
+
+    socket.on('disconnect', () => {
+      statusEl.textContent = 'Disconnected — reconnecting…';
+      statusEl.className = 'disconnected';
+    });
+
+    // Snapshot: first load of all prices
+    socket.on('snapshot', (prices) => {
+      Object.values(prices).forEach(renderCard);
+    });
+
+    // Individual tick update
+    socket.on('priceUpdate', renderCard);
+
+    function renderCard(data) {
+      const id = 'card-' + data.symbol;
+      let card = document.getElementById(id);
+
+      const prevPrice = card ? parseFloat(card.dataset.price) : null;
+      const direction = prevPrice === null ? null
+                      : data.lastPrice > prevPrice ? 'up'
+                      : data.lastPrice < prevPrice ? 'down'
+                      : null;
+
+      if (!card) {
+        card = document.createElement('div');
+        card.className = 'card';
+        card.id = id;
+        cardsEl.appendChild(card);
+      }
+
+      card.dataset.price = data.lastPrice;
+
+      const changeClass = data.changePercent >= 0 ? 'positive' : 'negative';
+      const changeSign  = data.changePercent >= 0 ? '+' : '';
+
+      card.innerHTML = `
+        <div class="card-header">
+          <span class="symbol">${data.symbol}</span>
+          <span class="timestamp">${new Date(data.timestamp).toLocaleTimeString()}</span>
+        </div>
+        <div class="price">$${data.lastPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+        <div class="change ${changeClass}">${changeSign}${data.changePercent.toFixed(2)}% (24h)</div>
+        <div class="meta">
+          <span><b>H</b> $${data.high24h.toLocaleString()}</span>
+          <span><b>L</b> $${data.low24h.toLocaleString()}</span>
+          <span><b>Vol</b> ${Number(data.volume24h.toFixed(0)).toLocaleString()}</span>
+        </div>
+      `;
+
+      if (direction) {
+        card.classList.add(`flash-${direction}`);
+        setTimeout(() => card.classList.remove(`flash-${direction}`), 600);
+      }
+    }
+  </script>
+</body>
+</html>

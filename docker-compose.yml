@@ -1,0 +1,21 @@
+version: '3.9'
+
+services:
+  crypto-ws:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: crypto-price-websocket
+    container_name: crypto-ws
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - PORT=3000
+      - MAX_CLIENTS=100
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

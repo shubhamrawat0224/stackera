@@ -1,10 +1,10 @@
 const WebSocket = require('ws');
 const { updatePrice } = require('./priceStore');
 
-// Pairs to subscribe to
-const PAIRS = ['btcusdt', 'ethusdt', 'bnbusdt'];
-
-const RECONNECT_DELAY_MS = 5000;
+// Configuration from environment variables
+const PAIRS = (process.env.TRADING_PAIRS || 'btcusdt,ethusdt,bnbusdt').split(',');
+const RECONNECT_DELAY_MS = parseInt(process.env.RECONNECT_DELAY_MS || '5000', 10);
+const BINANCE_WS_BASE_URL = process.env.BINANCE_WS_BASE_URL || 'wss://stream.binance.com:9443/ws';
 
 /**
  * Parses raw Binance ticker data into a clean object.
@@ -26,7 +26,7 @@ function parseTick(tick) {
  * Calls onUpdate(priceData) whenever a new tick arrives.
  */
 function connectToBinance(pair, onUpdate) {
-  const url = `wss://stream.binance.com:9443/ws/${pair}@ticker`;
+  const url = `${BINANCE_WS_BASE_URL}/${pair}@ticker`;
 
   function connect() {
     const ws = new WebSocket(url);

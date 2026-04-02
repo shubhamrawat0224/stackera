@@ -2,9 +2,18 @@
 
 A Node.js application that streams live crypto prices from Binance and broadcasts them in real-time to connected clients via Socket.io.
 
+---
+
+## 🚀 Live Deployment
+
+The application is deployed on Render and accessible at:
+- **Dashboard**: [https://stackera-no1a.onrender.com/](https://stackera-no1a.onrender.com/)
+- **WebSocket URL**: `https://stackera-no1a.onrender.com/` (Path: `/ws`)
+- **API**: [https://stackera-no1a.onrender.com/price](https://stackera-no1a.onrender.com/price)
+
 ```
 Binance WebSocket ──► Binance Listener ──► Socket.io Server ──► Clients
-  (btcusdt@ticker)                          ws://localhost:3000/ws
+  (btcusdt@ticker)                          ws://stackera-no1a.onrender.com/ws
   (ethusdt@ticker)
   (bnbusdt@ticker)
 ```
@@ -19,8 +28,9 @@ Binance WebSocket ──► Binance Listener ──► Socket.io Server ──�
 - REST API endpoint `GET /price` for HTTP polling
 - Auto-reconnect if the Binance stream drops
 - Connection limit (default 100 clients, configurable via `MAX_CLIENTS`)
-- Visual dashboard served at `http://localhost:3000`
+- Visual dashboard served at the root URL
 - Docker + Docker Compose support
+- Environment variable configuration for easy customization
 
 ---
 
@@ -34,6 +44,8 @@ Binance WebSocket ──► Binance Listener ──► Socket.io Server ──�
 │   └── priceStore.js       # In-memory price cache
 ├── public/
 │   └── index.html          # Browser dashboard
+├── .env.example            # Environment variable template
+├── render.yaml             # Render deployment configuration
 ├── Dockerfile
 ├── docker-compose.yml
 └── package.json
@@ -52,6 +64,18 @@ Binance WebSocket ──► Binance Listener ──► Socket.io Server ──�
 
 ---
 
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | HTTP / WebSocket port |
+| `MAX_CLIENTS` | `100` | Max simultaneous Socket.io connections |
+| `TRADING_PAIRS` | `btcusdt,ethusdt,bnbusdt` | Comma-separated list of pairs |
+| `RECONNECT_DELAY_MS` | `5000` | Delay before reconnecting to Binance |
+| `BINANCE_WS_BASE_URL` | `wss://data-stream.binance.com/ws` | Binance WebSocket base URL |
+
+---
+
 ## Running Locally
 
 ### 1. Install dependencies
@@ -60,7 +84,15 @@ Binance WebSocket ──► Binance Listener ──► Socket.io Server ──�
 npm install
 ```
 
-### 2. Start the server
+### 2. Configure Environment
+
+Create a `.env` file based on `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+### 3. Start the server
 
 ```bash
 npm start
@@ -72,24 +104,9 @@ Or with auto-reload during development:
 npm run dev
 ```
 
-### 3. Open the dashboard
+### 4. Open the dashboard
 
 Visit **http://localhost:3000** in your browser to see the live price dashboard.
-
----
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `3000` | HTTP / WebSocket port |
-| `MAX_CLIENTS` | `100` | Max simultaneous Socket.io connections |
-
-Set them inline or in a `.env` file (requires `dotenv` if used):
-
-```bash
-PORT=8080 MAX_CLIENTS=50 npm start
-```
 
 ---
 
@@ -100,7 +117,7 @@ PORT=8080 MAX_CLIENTS=50 npm start
 Returns the latest prices for all pairs.
 
 ```bash
-curl http://localhost:3000/price
+curl https://stackera-no1a.onrender.com/price
 ```
 
 ```json
@@ -118,31 +135,11 @@ curl http://localhost:3000/price
 }
 ```
 
-### `GET /price?symbol=BTCUSDT`
-
-Returns price data for a single symbol.
-
-```bash
-curl "http://localhost:3000/price?symbol=ETHUSDT"
-```
-
-### `GET /health`
-
-Returns server health and connected client count.
-
-```bash
-curl http://localhost:3000/health
-```
-
-```json
-{ "status": "ok", "connectedClients": 3, "uptime": 142 }
-```
-
 ---
 
 ## WebSocket (Socket.io)
 
-Connect to `ws://localhost:3000` with `path: '/ws'`.
+Connect to `https://stackera-no1a.onrender.com/` with `path: '/ws'`.
 
 ### Events received by the client
 
@@ -151,26 +148,29 @@ Connect to `ws://localhost:3000` with `path: '/ws'`.
 | `snapshot` | `{ BTCUSDT: {...}, ... }` | On first connect — full current state |
 | `priceUpdate` | `{ symbol, lastPrice, changePercent, high24h, low24h, volume24h, timestamp }` | Every new tick |
 
-### Quick browser test
+### Integration Example (Simple UI)
 
-```js
-const socket = io('http://localhost:3000', { path: '/ws' });
+You can easily integrate these live prices into any web page. Here is a minimal HTML example:
 
-socket.on('snapshot', (prices) => console.log('Snapshot:', prices));
-socket.on('priceUpdate', (data) => console.log('Tick:', data));
-```
-
-### Node.js client example
-
-```js
-const { io } = require('socket.io-client');
-
-const socket = io('http://localhost:3000', { path: '/ws' });
-
-socket.on('connect', () => console.log('Connected:', socket.id));
-socket.on('priceUpdate', ({ symbol, lastPrice, changePercent }) => {
-  console.log(`${symbol}: $${lastPrice} (${changePercent > 0 ? '+' : ''}${changePercent.toFixed(2)}%)`);
-});
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Price Tracker</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Live BTC Price: <span id="price">Loading...</span></h1>
+    <script>
+        const socket = io("https://stackera-no1a.onrender.com/", { path: "/ws" });
+        socket.on("priceUpdate", (data) => {
+            if (data.symbol === "BTCUSDT") {
+                document.getElementById("price").innerText = "$" + data.lastPrice.toLocaleString();
+            }
+        });
+    </script>
+</body>
+</html>
 ```
 
 ---
@@ -191,60 +191,6 @@ docker compose down
 ```
 
 The server will be available at **http://localhost:3000**.
-
-### Option B — Docker CLI
-
-```bash
-# Build image
-docker build -t crypto-price-websocket .
-
-# Run container
-docker run -d \
-  --name crypto-ws \
-  -p 3000:3000 \
-  -e MAX_CLIENTS=100 \
-  crypto-price-websocket
-
-# View logs
-docker logs -f crypto-ws
-
-# Stop and remove
-docker stop crypto-ws && docker rm crypto-ws
-```
-
-### Change the host port
-
-```bash
-# Map to port 8080 on your machine
-PORT=8080 docker compose up --build -d
-```
-
----
-
-## Health Check
-
-Docker Compose runs an automatic health check against `GET /health` every 30 seconds.
-You can also check manually:
-
-```bash
-docker inspect --format='{{.State.Health.Status}}' crypto-ws
-```
-
----
-
-## Supported Trading Pairs
-
-| Pair | Binance Stream |
-|------|---------------|
-| BTC/USDT | `wss://stream.binance.com:9443/ws/btcusdt@ticker` |
-| ETH/USDT | `wss://stream.binance.com:9443/ws/ethusdt@ticker` |
-| BNB/USDT | `wss://stream.binance.com:9443/ws/bnbusdt@ticker` |
-
-To add more pairs, edit the `PAIRS` array in [src/binanceListener.js](src/binanceListener.js):
-
-```js
-const PAIRS = ['btcusdt', 'ethusdt', 'bnbusdt', 'solusdt'];
-```
 
 ---
 

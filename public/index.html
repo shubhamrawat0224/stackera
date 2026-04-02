@@ -116,10 +116,14 @@
 
   <footer>Powered by Binance WebSocket · Socket.io</footer>
 
-  <!-- Socket.io client (served by the server automatically) -->
-  <script src="/ws/socket.io.js"></script>
+  <!-- Socket.io client (loaded via CDN for cross-platform support) -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
-    const socket = io({ path: '/ws' });
+    // Allow connecting to a specific server via ?server=... query param
+    const urlParams = new URLSearchParams(window.location.search);
+    const serverUrl = urlParams.get('server') || ""; // Default to current host if not provided
+
+    const socket = io(serverUrl, { path: '/ws' });
     const statusEl = document.getElementById('status');
     const cardsEl  = document.getElementById('cards');
 

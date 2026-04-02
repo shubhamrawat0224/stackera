@@ -7,7 +7,7 @@ const PAIRS = (process.env.TRADING_PAIRS || 'btcusdt,ethusdt,bnbusdt')
   .map(p => p.trim())
   .filter(p => p.length > 0);
 const RECONNECT_DELAY_MS = parseInt(process.env.RECONNECT_DELAY_MS || '5000', 10);
-const BINANCE_WS_BASE_URL = (process.env.BINANCE_WS_BASE_URL || 'wss://stream.binance.com:9443/ws').trim();
+const BINANCE_WS_BASE_URL = (process.env.BINANCE_WS_BASE_URL).trim();
 
 /**
  * Parses raw Binance ticker data into a clean object.

@@ -17,4 +17,4 @@ services:
       - key: RECONNECT_DELAY_MS
         value: 5000
       - key: BINANCE_WS_BASE_URL
-        value: wss://stream.binance.com:9443/ws
+        value: wss://data-stream.binance.com/ws

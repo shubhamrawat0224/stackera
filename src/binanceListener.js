@@ -30,13 +30,14 @@ function parseTick(tick) {
  */
 function connectToBinance(pair, onUpdate) {
   const url = `${BINANCE_WS_BASE_URL}/${pair.toLowerCase()}@ticker`;
+  let firstMessageReceived = false;
 
   function connect() {
     console.log(`[Binance] Attempting connection to: ${url}`);
     const ws = new WebSocket(url);
 
     ws.on('open', () => {
-      console.log(`[Binance] Connected → ${pair.toUpperCase()}`);
+      console.log(`[Binance] Connection OPENED → ${pair.toUpperCase()}`);
     });
 
     ws.on('message', (raw) => {
@@ -44,23 +45,31 @@ function connectToBinance(pair, onUpdate) {
         const tick = JSON.parse(raw);
         const priceData = parseTick(tick);
 
+        // Log the first message received for each pair to verify data flow
+        if (!firstMessageReceived) {
+          console.log(`[Binance] First message received for ${pair.toUpperCase()}:`, JSON.stringify(priceData));
+          firstMessageReceived = true;
+        }
+
         updatePrice(priceData.symbol, priceData);
         onUpdate(priceData);
       } catch (err) {
         console.error(`[Binance] Parse error (${pair}):`, err.message);
+        console.error(`[Binance] Raw payload was:`, raw.toString());
       }
     });
 
-    ws.on('close', (code) => {
+    ws.on('close', (code, reason) => {
       console.warn(
-        `[Binance] ${pair.toUpperCase()} closed (${code}). Reconnecting in ${RECONNECT_DELAY_MS / 1000}s…`
+        `[Binance] ${pair.toUpperCase()} connection CLOSED (Code: ${code}, Reason: ${reason || 'none'}). Reconnecting in ${RECONNECT_DELAY_MS / 1000}s…`
       );
       setTimeout(connect, RECONNECT_DELAY_MS);
     });
 
     ws.on('error', (err) => {
-      console.error(`[Binance] ${pair.toUpperCase()} error:`, err.message);
-      ws.terminate(); // triggers 'close' → auto-reconnect
+      console.error(`[Binance] ${pair.toUpperCase()} WebSocket ERROR:`, err.message);
+      // Terminate triggers 'close' automatically
+      ws.terminate();
     });
   }
 
